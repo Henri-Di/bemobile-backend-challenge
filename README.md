@@ -49,7 +49,7 @@ Funcionalidades principais:
 
 - autenticação de usuários
 - gerenciamento de usuários
-- gerenciamento de clientes
+- consulta de clientes
 - gerenciamento de produtos
 - gerenciamento de gateways
 - criação de transações
@@ -110,13 +110,13 @@ Database
 
 | Camada | Responsabilidade |
 |------|------|
-Controllers | Entrada HTTP |
-Requests | Validação |
-Services | Regras de negócio |
-Repositories | Persistência |
-DTOs | Transporte de dados |
-Enums | Estados do domínio |
-Gateways | Integração externa |
+| Controllers | Entrada HTTP |
+| Requests | Validação |
+| Services | Regras de negócio |
+| Repositories | Persistência |
+| DTOs | Transporte de dados |
+| Enums | Estados do domínio |
+| Gateways | Integração externa |
 
 ---
 
@@ -142,7 +142,8 @@ app
 │   └── UserRoleEnum.php
 │
 ├── Exceptions
-│   └── GatewayIntegrationException.php
+│   ├── GatewayIntegrationException.php
+│   └── Handler.php
 │
 ├── Http
 │   ├── Controllers
@@ -156,17 +157,32 @@ app
 │   │       └── UserController.php
 │   │
 │   ├── Middleware
+│   │   ├── Authenticate.php
 │   │   ├── RoleMiddleware.php
-│   │   └── Authenticate.php
+│   │   └── VerifyCsrfToken.php
 │   │
 │   ├── Requests
-│   │   ├── StoreTransactionRequest.php
+│   │   ├── ClientIndexRequest.php
+│   │   ├── GatewayIndexRequest.php
+│   │   ├── ProductIndexRequest.php
+│   │   ├── SetGatewayActiveRequest.php
+│   │   ├── StoreProductRequest.php
 │   │   ├── StoreRefundRequest.php
-│   │   └── StoreUserRequest.php
+│   │   ├── StoreTransactionRequest.php
+│   │   ├── StoreUserRequest.php
+│   │   ├── TransactionIndexRequest.php
+│   │   ├── UpdateGatewayPriorityRequest.php
+│   │   ├── UpdateProductRequest.php
+│   │   ├── UpdateUserRequest.php
+│   │   └── UserIndexRequest.php
 │   │
 │   └── Resources
-│       ├── TransactionResource.php
+│       ├── ClientDetailResource.php
+│       ├── ClientResource.php
+│       ├── GatewayResource.php
+│       ├── ProductResource.php
 │       ├── RefundResource.php
+│       ├── TransactionResource.php
 │       └── UserResource.php
 │
 ├── Models
@@ -272,6 +288,7 @@ participant DB
 
 Client->>API: POST /transactions
 API->>Service: createTransaction()
+
 Service->>DB: create transaction (PROCESSING)
 
 Service->>Gateway1: charge()
@@ -295,7 +312,7 @@ end
 
 Todas as tentativas são registradas em:
 
-```
+```text
 transaction_attempts
 ```
 
@@ -312,7 +329,7 @@ participant Service
 participant Gateway
 participant DB
 
-Client->>API: POST /refund
+Client->>API: POST /transactions/{transaction}/refund
 API->>Service: refund()
 
 Service->>Gateway: refund request
@@ -330,7 +347,7 @@ Autenticação baseada em **Laravel Sanctum**.
 
 Roles disponíveis:
 
-```
+```text
 ADMIN
 MANAGER
 FINANCE
@@ -341,11 +358,11 @@ USER
 
 | Ação | ADMIN | MANAGER | FINANCE | USER |
 |----|----|----|----|----|
-Criar usuário | ✔ | ✔ | ✖ | ✖ |
-Criar produto | ✔ | ✔ | ✔ | ✖ |
-Criar cliente | ✔ | ✔ | ✔ | ✔ |
-Criar transação | ✔ | ✔ | ✔ | ✔ |
-Processar refund | ✔ | ✖ | ✔ | ✖ |
+| Criar usuário | ✔ | ✔ | ✖ | ✖ |
+| Criar produto | ✔ | ✔ | ✔ | ✖ |
+| Criar cliente | ✔ | ✔ | ✔ | ✔ |
+| Criar transação | ✔ | ✔ | ✔ | ✔ |
+| Processar refund | ✔ | ✖ | ✔ | ✖ |
 
 ---
 
@@ -353,7 +370,7 @@ Processar refund | ✔ | ✖ | ✔ | ✖ |
 
 ## Auth
 
-```
+```text
 POST /api/v1/login
 POST /api/v1/logout
 GET /api/v1/user
@@ -361,48 +378,53 @@ GET /api/v1/user
 
 ## Users
 
-```
+```text
 GET /api/v1/users
+GET /api/v1/users/{user}
 POST /api/v1/users
-PUT /api/v1/users/{id}
-DELETE /api/v1/users/{id}
+PUT /api/v1/users/{user}
+PATCH /api/v1/users/{user}
+DELETE /api/v1/users/{user}
 ```
 
 ## Products
 
-```
+```text
 GET /api/v1/products
+GET /api/v1/products/{product}
 POST /api/v1/products
-PUT /api/v1/products/{id}
-DELETE /api/v1/products/{id}
+PUT /api/v1/products/{product}
+PATCH /api/v1/products/{product}
+DELETE /api/v1/products/{product}
 ```
 
 ## Clients
 
-```
+```text
 GET /api/v1/clients
-POST /api/v1/clients
+GET /api/v1/clients/{client}
 ```
 
 ## Gateways
 
-```
+```text
 GET /api/v1/gateways
-PATCH /api/v1/gateways/{id}/priority
-PATCH /api/v1/gateways/{id}/active
+GET /api/v1/gateways/{gateway}
+PATCH /api/v1/gateways/{gateway}/priority
+PATCH /api/v1/gateways/{gateway}/active
 ```
 
 ## Transactions
 
-```
+```text
 POST /api/v1/transactions
 GET /api/v1/transactions
-GET /api/v1/transactions/{id}
+GET /api/v1/transactions/{transaction}
 ```
 
 ## Refund
 
-```
+```text
 POST /api/v1/transactions/{transaction}/refund
 ```
 
@@ -412,7 +434,7 @@ POST /api/v1/transactions/{transaction}/refund
 
 Cobertura de testes:
 
-```
+```text
 Auth
 AuthorizationRoles
 Transactions
@@ -428,7 +450,7 @@ docker exec -it bemobile_app php artisan test
 
 Exemplo:
 
-```
+```text
 Tests: 68 passed
 Assertions: 283
 ```
@@ -476,7 +498,7 @@ docker exec -it bemobile_app php artisan migrate --seed
 
 Aplicação disponível em:
 
-```
+```text
 http://localhost:9000
 ```
 
@@ -486,7 +508,7 @@ http://localhost:9000
 
 Containers utilizados:
 
-```
+```text
 bemobile_app
 bemobile_mysql
 bemobile_nginx
@@ -518,11 +540,13 @@ Boas práticas aplicadas:
 
 A arquitetura permite evoluir para:
 
-- filas assíncronas
-- circuit breaker para gateways
-- novos provedores de pagamento
-- observabilidade e métricas
-- idempotência de pagamentos
+```text
+filas assíncronas
+circuit breaker para gateways
+novos provedores de pagamento
+observabilidade e métricas
+idempotência de pagamentos
+```
 
 ---
 
@@ -554,21 +578,21 @@ Permite auditoria completa das transações.
 
 | Requisito | Status |
 |------|------|
-API REST | ✔ |
-MySQL | ✔ |
-Docker | ✔ |
-Múltiplos gateways | ✔ |
-Fallback automático | ✔ |
-Reembolso | ✔ |
-Controle de roles | ✔ |
-Testes automatizados | ✔ |
-Arquitetura extensível | ✔ |
+| API REST | ✔ |
+| MySQL | ✔ |
+| Docker | ✔ |
+| Múltiplos gateways | ✔ |
+| Fallback automático | ✔ |
+| Reembolso | ✔ |
+| Controle de roles | ✔ |
+| Testes automatizados | ✔ |
+| Arquitetura extensível | ✔ |
 
 ---
 
 # Melhorias Futuras
 
-```
+```text
 OpenAPI / Swagger
 Circuit breaker
 Filas assíncronas
