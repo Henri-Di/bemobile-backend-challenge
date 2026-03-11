@@ -1,168 +1,232 @@
 # BeMobile Backend Challenge
 
+![PHP](https://img.shields.io/badge/PHP-8.2-blue)
+![Laravel](https://img.shields.io/badge/Laravel-10-red)
+![Docker](https://img.shields.io/badge/Docker-enabled-blue)
+![MySQL](https://img.shields.io/badge/MySQL-8-orange)
+![Tests](https://img.shields.io/badge/tests-passing-brightgreen)
+
 API RESTful desenvolvida como solução para o **Teste Prático Backend da BeMobile (Nível 3)**.
 
-O projeto implementa um sistema de **processamento de pagamentos com múltiplos gateways**, incluindo **fallback automático**, gerenciamento de transações, registro de tentativas de pagamento e processamento de reembolsos.
+Este projeto implementa um sistema completo de **processamento de pagamentos com múltiplos gateways**, incluindo fallback automático, registro de tentativas de pagamento, processamento de reembolsos e controle de permissões.
 
-A aplicação foi construída utilizando **Laravel 10**, **PHP 8.2**, **MySQL** e **Docker**, com foco em:
-
-- arquitetura limpa
-- separação de responsabilidades
-- boas práticas de desenvolvimento
-- testes automatizados
-- organização do código
-
----
-
-## 📌 Visão Geral
-
-A API permite:
-
-- autenticação de usuários
-- gerenciamento de usuários
-- gerenciamento de clientes
-- gerenciamento de produtos
-- criação de transações de pagamento
-- integração com múltiplos gateways de pagamento
-- fallback automático entre gateways
-- registro de tentativas de pagamento
-- processamento de reembolsos
-- controle de permissões por role
-
----
-
-## 🧰 Tecnologias Utilizadas
+A aplicação foi construída utilizando:
 
 - PHP 8.2
 - Laravel 10
 - MySQL
 - Docker
-- Docker Compose
 - Laravel Sanctum
 - PHPUnit
 
+O projeto segue princípios de:
+
+- arquitetura limpa
+- separação de responsabilidades
+- extensibilidade
+- testabilidade
+- boas práticas de engenharia
+
 ---
 
-## 🏗 Arquitetura do Projeto
+# 📚 Sumário
 
-Estrutura principal da aplicação:
+- Visão Geral
+- Arquitetura
+- Estrutura do Projeto
+- Modelagem do Banco
+- Fluxo de Pagamento
+- Fluxo de Reembolso
+- Autenticação e Permissões
+- Endpoints
+- Testes Automatizados
+- Setup do Projeto
+- Docker
+- Decisões Técnicas
+- Melhorias Futuras
 
-```text
-app/
+---
+
+# Visão Geral
+
+A API fornece um backend completo para gerenciamento de pagamentos.
+
+Funcionalidades implementadas:
+
+- autenticação de usuários
+- gerenciamento de usuários
+- gerenciamento de clientes
+- gerenciamento de produtos
+- gerenciamento de gateways
+- criação de transações
+- fallback automático entre gateways
+- registro de tentativas de pagamento
+- processamento de reembolsos
+- controle de permissões baseado em roles
+
+---
+
+# Arquitetura
+
+A aplicação segue uma arquitetura em camadas para manter o código desacoplado e testável.
+
+```
+Client Request
+      │
+      ▼
+Controllers
+      │
+      ▼
+Request Validation
+      │
+      ▼
+Service Layer
+      │
+      ▼
+Gateway Integration
+      │
+      ▼
+Repository Layer
+      │
+      ▼
+Database
+```
+
+### Camadas
+
+| Camada | Responsabilidade |
+|------|------|
+Controllers | Entrada HTTP |
+Requests | Validação |
+Services | Regras de negócio |
+Repositories | Persistência |
+DTOs | Transporte de dados |
+Enums | Tipagem de estados |
+Gateways | Integração externa |
+
+---
+
+# Estrutura do Projeto
+
+Estrutura real baseada no projeto:
+
+```
+app
+├── Console
 ├── Contracts
-│   └── GatewayPaymentInterface.php
+│   ├── GatewayPaymentInterface.php
+│   ├── GatewayRepositoryInterface.php
+│   └── TransactionRepositoryInterface.php
+│
 ├── DataTransferObjects
 │   ├── GatewayChargeResult.php
 │   ├── GatewayRefundResult.php
 │   └── PaymentChargeData.php
+│
 ├── Enums
 │   ├── GatewayCodeEnum.php
+│   ├── RefundStatusEnum.php
 │   ├── TransactionAttemptStatusEnum.php
-│   └── TransactionStatusEnum.php
+│   ├── TransactionStatusEnum.php
+│   └── UserRoleEnum.php
+│
 ├── Exceptions
-│   └── GatewayIntegrationException.php
+│   ├── GatewayIntegrationException.php
+│   └── Handler.php
+│
 ├── Http
 │   ├── Controllers
 │   │   └── Api
-│   │       └── TransactionController.php
+│   │       ├── AuthController.php
+│   │       ├── ClientController.php
+│   │       ├── GatewayController.php
+│   │       ├── ProductController.php
+│   │       ├── RefundController.php
+│   │       ├── TransactionController.php
+│   │       └── UserController.php
+│   │
 │   ├── Middleware
+│   │   ├── RoleMiddleware.php
+│   │   └── Authenticate.php
+│   │
 │   ├── Requests
+│   │   ├── ClientIndexRequest.php
+│   │   ├── GatewayIndexRequest.php
+│   │   ├── ProductIndexRequest.php
+│   │   ├── SetGatewayActiveRequest.php
+│   │   ├── StoreProductRequest.php
+│   │   ├── StoreRefundRequest.php
 │   │   ├── StoreTransactionRequest.php
-│   │   └── TransactionIndexRequest.php
+│   │   ├── StoreUserRequest.php
+│   │   ├── TransactionIndexRequest.php
+│   │   ├── UpdateGatewayPriorityRequest.php
+│   │   ├── UpdateProductRequest.php
+│   │   ├── UpdateUserRequest.php
+│   │   └── UserIndexRequest.php
+│   │
 │   └── Resources
-│       └── TransactionResource.php
+│       ├── ClientDetailResource.php
+│       ├── ClientResource.php
+│       ├── GatewayResource.php
+│       ├── ProductResource.php
+│       ├── RefundResource.php
+│       ├── TransactionResource.php
+│       └── UserResource.php
+│
 ├── Models
+│   ├── Concerns
+│   │   └── HandlesBrazilianDateTimes.php
+│   │
 │   ├── Client.php
 │   ├── Gateway.php
 │   ├── Product.php
 │   ├── Refund.php
 │   ├── Transaction.php
 │   ├── TransactionAttempt.php
-│   └── TransactionProduct.php
+│   ├── TransactionProduct.php
+│   └── User.php
+│
 ├── Providers
+│   ├── AppServiceProvider.php
+│   ├── AuthServiceProvider.php
+│   ├── BroadcastServiceProvider.php
+│   ├── EventServiceProvider.php
+│   └── RouteServiceProvider.php
+│
 ├── Repositories
 │   └── Eloquent
 │       ├── EloquentGatewayRepository.php
 │       └── EloquentTransactionRepository.php
+│
 └── Services
     ├── Gateways
+    │   ├── AbstractGatewayService.php
     │   ├── GatewayOneService.php
     │   └── GatewayTwoService.php
+    │
     └── PaymentService.php
-```
-
-### Camadas
-
-#### Contracts
-
-Interfaces que definem contratos da aplicação, como:
-
-- `GatewayPaymentInterface`
-- `TransactionRepositoryInterface`
-- `GatewayRepositoryInterface`
-
-#### DTOs
-
-Objetos responsáveis por transportar dados entre camadas:
-
-- `PaymentChargeData`
-- `GatewayChargeResult`
-- `GatewayRefundResult`
-
-#### Enums
-
-Representação tipada de estados e códigos.
-
-- `TransactionStatusEnum`
-- `GatewayCodeEnum`
-- `TransactionAttemptStatusEnum`
-
-#### Services
-
-Responsáveis pela lógica de negócio.
-
-Exemplo:
-
-- `PaymentService`
-
-#### Repositories
-
-Responsáveis pela persistência.
-
-```text
-Repositories/
-└── Eloquent
-    ├── EloquentGatewayRepository.php
-    └── EloquentTransactionRepository.php
-```
-
-#### Controllers
-
-Recebem requisições HTTP e delegam para serviços.
-
-```text
-Http/Controllers/Api
-└── TransactionController.php
 ```
 
 ---
 
-## 🗄 Modelagem do Banco
+# Modelagem do Banco
 
-Principais entidades:
+Tabelas principais:
 
-- users
-- clients
-- products
-- transactions
-- transaction_products
-- transaction_attempts
-- refunds
-- gateways
+```
+users
+clients
+products
+gateways
+transactions
+transaction_products
+transaction_attempts
+refunds
+```
 
-Relacionamentos principais:
+Relacionamentos:
 
-```text
+```
 Client
  └── Transactions
 
@@ -178,304 +242,264 @@ Gateway
 
 ---
 
-## 💳 Fluxo de Pagamento
+# Fluxo de Pagamento
 
-1. Cliente realiza uma compra
-2. Sistema valida produtos e valores
-3. A transação é criada com status `PROCESSING`
-4. Gateways ativos são consultados por prioridade
-5. Cada gateway tenta processar o pagamento
-6. Caso um gateway falhe, o próximo é utilizado
+Fluxo simplificado:
 
-Se o pagamento for aprovado:
-
-```text
-transaction.status = PAID
 ```
-
-Se todos os gateways falharem:
-
-```text
-transaction.status = FAILED
+Cliente cria transação
+        │
+        ▼
+Validação de produtos
+        │
+        ▼
+Criação da transação (PROCESSING)
+        │
+        ▼
+Gateway 1 tenta pagamento
+        │
+        ├─ sucesso → status = PAID
+        │
+        └─ falha
+             │
+             ▼
+        Gateway 2 tenta pagamento
+             │
+             ├─ sucesso → status = PAID
+             │
+             └─ falha → status = FAILED
 ```
 
 Todas as tentativas são registradas em:
 
-```text
+```
 transaction_attempts
 ```
 
 ---
 
-## 💸 Fluxo de Reembolso
+# Fluxo de Reembolso
 
 Regras aplicadas:
 
 - apenas transações `PAID` podem ser reembolsadas
-- refund pode ser total ou parcial
-- o valor do refund não pode exceder o valor da transação
-- o refund é registrado na tabela `refunds`
-- após o reembolso, a transação passa para o status `REFUNDED`
+- reembolso pode ser parcial ou total
+- valor não pode exceder valor da transação
+
+Após reembolso:
+
+```
+transaction.status = REFUNDED
+```
 
 ---
 
-## 🔐 Autenticação e Autorização
+# Autenticação e Permissões
 
-A API utiliza **Laravel Sanctum**.
+Autenticação baseada em **Laravel Sanctum**.
 
 Roles disponíveis:
 
-- ADMIN
-- MANAGER
-- USER
+```
+ADMIN
+MANAGER
+USER
+```
 
-Permissões:
+Permissões principais:
 
 | Ação | ADMIN | MANAGER | USER |
-|---|---|---|---|
-| Criar usuário | ✔ | ✔ | ✖ |
-| Criar produto | ✔ | ✔ | ✖ |
-| Criar cliente | ✔ | ✔ | ✔ |
-| Criar transação | ✔ | ✔ | ✔ |
-| Processar refund | ✔ | ✔ | ✖ |
+|----|----|----|----|
+Criar usuário | ✔ | ✔ | ✖ |
+Criar produto | ✔ | ✔ | ✖ |
+Criar cliente | ✔ | ✔ | ✔ |
+Criar transação | ✔ | ✔ | ✔ |
+Processar refund | ✔ | ✔ | ✖ |
 
 ---
 
-## 📡 Endpoints Principais
+# Endpoints
 
-### Autenticação
+### Auth
 
-```http
+```
 POST /api/v1/login
 POST /api/v1/logout
-GET  /api/v1/user
+GET /api/v1/user
 ```
 
-### Usuários
+### Users
 
-```http
-GET    /api/v1/users
-GET    /api/v1/users/{user}
-POST   /api/v1/users
-PUT    /api/v1/users/{user}
-PATCH  /api/v1/users/{user}
-DELETE /api/v1/users/{user}
+```
+GET /api/v1/users
+POST /api/v1/users
+PUT /api/v1/users/{id}
+DELETE /api/v1/users/{id}
 ```
 
-### Produtos
+### Products
 
-```http
-GET    /api/v1/products
-GET    /api/v1/products/{product}
-POST   /api/v1/products
-PUT    /api/v1/products/{product}
-PATCH  /api/v1/products/{product}
-DELETE /api/v1/products/{product}
+```
+GET /api/v1/products
+POST /api/v1/products
+PUT /api/v1/products/{id}
+DELETE /api/v1/products/{id}
 ```
 
-### Clientes
+### Clients
 
-```http
+```
 GET /api/v1/clients
-GET /api/v1/clients/{client}
 POST /api/v1/clients
-PUT /api/v1/clients/{client}
-PATCH /api/v1/clients/{client}
-DELETE /api/v1/clients/{client}
 ```
 
 ### Gateways
 
-```http
-GET   /api/v1/gateways
-GET   /api/v1/gateways/{gateway}
-PATCH /api/v1/gateways/{gateway}/priority
-PATCH /api/v1/gateways/{gateway}/active
+```
+GET /api/v1/gateways
+PATCH /api/v1/gateways/{id}/priority
+PATCH /api/v1/gateways/{id}/active
 ```
 
-### Transações
+### Transactions
 
-```http
+```
 POST /api/v1/transactions
-GET  /api/v1/transactions
-GET  /api/v1/transactions/{transaction}
+GET /api/v1/transactions
+GET /api/v1/transactions/{id}
 ```
 
 ### Refund
 
-```http
+```
 POST /api/v1/transactions/{transaction}/refund
 ```
 
 ---
 
-## 🧪 Testes Automatizados
+# Testes Automatizados
 
-Os testes cobrem:
+Testes cobrem:
 
-- criação de transações
-- fallback entre gateways
-- validações de compra
-- fluxo de refund
-- autenticação e permissões
-- tratamento de erros de gateway
-- serialização de transações
+```
+Auth
+AuthorizationRoles
+Transactions
+PaymentService
+```
 
-Executar todos os testes:
+Executar testes:
 
 ```bash
 docker exec -it bemobile_app php artisan test
 ```
 
-Executar testes específicos:
-
-```bash
-docker exec -it bemobile_app php artisan test tests/Feature/Transactions/ShowTransactionTest.php
-docker exec -it bemobile_app php artisan test tests/Feature/Transactions/RefundTransactionTest.php
-```
-
 ---
 
-## 🐳 Executando o Projeto
+# Setup do Projeto
 
-### 1. Clonar o repositório
+### Clonar repositório
 
 ```bash
 git clone https://github.com/Henri-Di/bemobile-backend-challenge.git
 cd bemobile-backend-challenge
 ```
 
-### 2. Subir os containers
+### Subir containers
 
 ```bash
 docker compose up -d --build
 ```
 
-### 3. Configurar o ambiente
-
-Linux/macOS:
+### Configurar ambiente
 
 ```bash
 cp .env.example .env
 ```
 
-Windows:
-
-```bash
-copy .env.example .env
-```
-
-### 4. Instalar dependências
+### Instalar dependências
 
 ```bash
 docker exec -it bemobile_app composer install
 ```
 
-### 5. Gerar a chave da aplicação
+### Gerar chave
 
 ```bash
 docker exec -it bemobile_app php artisan key:generate
 ```
 
-### 6. Rodar migrations e seeders
+### Rodar migrations
 
 ```bash
 docker exec -it bemobile_app php artisan migrate --seed
 ```
 
-### 7. Executar a aplicação
+Aplicação disponível em:
 
-A aplicação ficará disponível em:
-
-```text
+```
 http://localhost:9000
 ```
 
 ---
 
-## 📂 Docker
+# Docker
 
 Containers utilizados:
 
-- `bemobile_app`
-- `bemobile_mysql`
-- `bemobile_nginx`
+```
+bemobile_app
+bemobile_mysql
+bemobile_nginx
+```
 
-Subir containers:
+Subir:
 
 ```bash
 docker compose up -d
 ```
 
-Parar containers:
+Parar:
 
 ```bash
 docker compose down
 ```
 
-Reconstruir containers:
-
-```bash
-docker compose up -d --build
-```
-
 ---
 
-## 📎 Decisões Técnicas
+# Decisões Técnicas
 
-### Fallback entre gateways
+### Interface de Gateway
 
-Permite maior confiabilidade no processamento de pagamentos.
+Permite adicionar novos gateways sem alterar a lógica principal.
 
-Se um gateway falhar, o próximo gateway ativo é utilizado automaticamente.
+### DTO Layer
 
-### DTOs
-
-Separação clara entre domínio e transporte de dados.
+Isola dados da camada de negócio.
 
 ### Repository Pattern
 
-Abstração da camada de persistência.
+Abstrai acesso ao banco.
 
-### Enums
+### Registro de Tentativas
 
-Evita uso de strings soltas no código.
-
-### Registro de tentativas
-
-Todas as tentativas de pagamento são armazenadas para auditoria.
-
-### Resource Layer
-
-A serialização da resposta foi centralizada em `TransactionResource`, garantindo consistência da API e controle do payload retornado ao cliente.
-
-### Logs seguros
-
-O projeto aplica sanitização e mascaramento de dados sensíveis para evitar exposição de informações de cartão e payloads críticos em logs.
+Permite auditoria completa de pagamentos.
 
 ---
 
-## 📈 Possíveis Melhorias
+# Melhorias Futuras
 
 - documentação OpenAPI / Swagger
 - circuit breaker para gateways
-- idempotência em pagamentos
-- logs estruturados
+- filas para pagamentos assíncronos
+- observabilidade
 - métricas e monitoramento
-- filas para processamento assíncrono
-- observabilidade com tracing
-- rate limiting mais granular
+- idempotência de pagamentos
 
 ---
 
-## 👤 Autor
+# Autor
 
-**Henrique Dias**
+Henrique Dias
 
-Desafio técnico backend — BeMobile
-
----
-
-## 📄 Licença
-
-Projeto desenvolvido exclusivamente para avaliação técnica.
+Teste Técnico Backend — BeMobile
