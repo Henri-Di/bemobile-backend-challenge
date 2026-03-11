@@ -1,8 +1,23 @@
 {
-    "name": "laravel/laravel",
+    "name": "henri-di/bemobile-backend-challenge",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "description": "REST API developed for the BeMobile Backend Challenge (Level 3), featuring multi-gateway payment processing with priority fallback, transaction attempt tracking, refunds, authentication, and role-based access control.",
+    "keywords": [
+        "laravel",
+        "php",
+        "api",
+        "rest-api",
+        "payments",
+        "payment-gateway",
+        "gateway-fallback",
+        "transactions",
+        "refunds",
+        "sanctum",
+        "docker",
+        "mysql",
+        "bemobile",
+        "backend-challenge"
+    ],
     "license": "MIT",
     "require": {
         "php": "^8.1",
@@ -45,6 +60,18 @@
         ],
         "post-create-project-cmd": [
             "@php artisan key:generate --ansi"
+        ],
+        "test": [
+            "@php artisan test"
+        ],
+        "test:unit": [
+            "@php artisan test --testsuite=Unit"
+        ],
+        "test:feature": [
+            "@php artisan test --testsuite=Feature"
+        ],
+        "lint": [
+            "./vendor/bin/pint"
         ]
     },
     "extra": {
