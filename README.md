@@ -2,21 +2,23 @@
 
 ![PHP](https://img.shields.io/badge/PHP-8.2-blue)
 ![Laravel](https://img.shields.io/badge/Laravel-10-red)
-![Docker](https://img.shields.io/badge/Docker-enabled-blue)
+![Docker](https://img.shields.io/badge/Docker-ready-blue)
 ![MySQL](https://img.shields.io/badge/MySQL-8-orange)
-![Tests](https://img.shields.io/badge/tests-passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-68%20passed-brightgreen)
+![Architecture](https://img.shields.io/badge/architecture-clean%20service%20layer-blueviolet)
 
 API RESTful desenvolvida como solução para o **Teste Prático Backend da BeMobile — Nível 3**.
 
-Sistema de **processamento de pagamentos com múltiplos gateways**, incluindo:
+Este projeto implementa um sistema de **processamento de pagamentos resiliente**, com suporte a múltiplos gateways, fallback automático, auditoria completa de tentativas e suporte a reembolso total ou parcial.
 
-- fallback automático entre gateways
-- controle de prioridade de gateways
-- registro de tentativas de pagamento
-- reembolsos totais e parciais
-- autenticação e controle de permissões
-- arquitetura extensível para novos gateways
+A aplicação foi projetada com foco em:
+
+- arquitetura modular
+- separação clara de responsabilidades
+- extensibilidade para novos gateways
+- resiliência na comunicação com provedores
 - testes automatizados
+- segurança e rastreabilidade das operações
 
 ---
 
@@ -24,12 +26,15 @@ Sistema de **processamento de pagamentos com múltiplos gateways**, incluindo:
 
 - Visão Geral
 - Arquitetura (C4 Simplificado)
+- Arquitetura em Camadas
 - Estrutura do Projeto
 - Modelagem do Banco
+- Diagrama ER
 - Fluxo de Pagamento
 - Fluxo de Reembolso
 - Autenticação e Permissões
 - Endpoints
+- Exemplos de Requisição
 - Testes Automatizados
 - Setup do Projeto
 - Docker
@@ -66,7 +71,7 @@ Funcionalidades principais:
 ```mermaid
 flowchart LR
 
-User[Client Application]
+Client[Client Application]
 
 subgraph Backend
 API[Laravel API]
@@ -76,7 +81,7 @@ Gateway2[Gateway Two]
 DB[(MySQL)]
 end
 
-User --> API
+Client --> API
 API --> Service
 Service --> Gateway1
 Service --> Gateway2
@@ -84,7 +89,9 @@ Service --> DB
 API --> DB
 ```
 
-## Arquitetura em Camadas
+---
+
+# Arquitetura em Camadas
 
 ```text
 Client Request
@@ -93,7 +100,7 @@ Client Request
 Controllers
       │
       ▼
-Request Validation
+Form Requests
       │
       ▼
 Service Layer
@@ -102,21 +109,21 @@ Service Layer
 Gateway Integration
       │
       ▼
-Repository Layer
+Eloquent ORM
       │
       ▼
-Database
+MySQL Database
 ```
 
 | Camada | Responsabilidade |
 |------|------|
-| Controllers | Entrada HTTP |
-| Requests | Validação |
+| Controllers | Entrada HTTP e orquestração |
+| Requests | Validação de dados |
 | Services | Regras de negócio |
-| Repositories | Persistência |
-| DTOs | Transporte de dados |
+| Gateways | Integração com provedores de pagamento |
+| DTOs | Transporte estruturado de dados |
 | Enums | Estados do domínio |
-| Gateways | Integração externa |
+| Models | Persistência via Eloquent |
 
 ---
 
@@ -125,9 +132,7 @@ Database
 ```text
 app
 ├── Contracts
-│   ├── GatewayPaymentInterface.php
-│   ├── GatewayRepositoryInterface.php
-│   └── TransactionRepositoryInterface.php
+│   └── GatewayPaymentInterface.php
 │
 ├── DataTransferObjects
 │   ├── GatewayChargeResult.php
@@ -158,8 +163,7 @@ app
 │   │
 │   ├── Middleware
 │   │   ├── Authenticate.php
-│   │   ├── RoleMiddleware.php
-│   │   └── VerifyCsrfToken.php
+│   │   └── RoleMiddleware.php
 │   │
 │   ├── Requests
 │   │   ├── ClientIndexRequest.php
@@ -195,11 +199,6 @@ app
 │   ├── TransactionProduct.php
 │   └── User.php
 │
-├── Repositories
-│   └── Eloquent
-│       ├── EloquentGatewayRepository.php
-│       └── EloquentTransactionRepository.php
-│
 └── Services
     ├── Gateways
     │   ├── AbstractGatewayService.php
@@ -226,7 +225,9 @@ transaction_attempts
 refunds
 ```
 
-## Diagrama ER
+---
+
+# Diagrama ER
 
 ```mermaid
 erDiagram
@@ -281,38 +282,36 @@ sequenceDiagram
 
 participant Client
 participant API
-participant Service
+participant PaymentService
 participant Gateway1
 participant Gateway2
 participant DB
 
 Client->>API: POST /transactions
-API->>Service: createTransaction()
+API->>PaymentService: purchase()
 
-Service->>DB: create transaction (PROCESSING)
-
-Service->>Gateway1: charge()
+PaymentService->>Gateway1: charge()
 
 alt Success
-Gateway1-->>Service: success
-Service->>DB: update status PAID
+Gateway1-->>PaymentService: success
+PaymentService->>DB: update status PAID
 else Failure
-Gateway1-->>Service: failure
-Service->>Gateway2: charge()
+Gateway1-->>PaymentService: failure
+PaymentService->>Gateway2: charge()
 
 alt Success
-Gateway2-->>Service: success
-Service->>DB: update status PAID
+Gateway2-->>PaymentService: success
+PaymentService->>DB: update status PAID
 else Failure
-Gateway2-->>Service: failure
-Service->>DB: update status FAILED
+Gateway2-->>PaymentService: failure
+PaymentService->>DB: update status FAILED
 end
 end
 ```
 
 Todas as tentativas são registradas em:
 
-```text
+```
 transaction_attempts
 ```
 
@@ -325,18 +324,18 @@ sequenceDiagram
 
 participant Client
 participant API
-participant Service
+participant PaymentService
 participant Gateway
 participant DB
 
 Client->>API: POST /transactions/{transaction}/refund
-API->>Service: refund()
+API->>PaymentService: refund()
 
-Service->>Gateway: refund request
-Gateway-->>Service: response
+PaymentService->>Gateway: refund request
+Gateway-->>PaymentService: response
 
-Service->>DB: save refund
-Service->>DB: update transaction
+PaymentService->>DB: save refund
+PaymentService->>DB: update transaction
 ```
 
 ---
@@ -347,7 +346,7 @@ Autenticação baseada em **Laravel Sanctum**.
 
 Roles disponíveis:
 
-```text
+```
 ADMIN
 MANAGER
 FINANCE
@@ -370,7 +369,7 @@ USER
 
 ## Auth
 
-```text
+```
 POST /api/v1/login
 POST /api/v1/logout
 GET /api/v1/user
@@ -378,7 +377,7 @@ GET /api/v1/user
 
 ## Users
 
-```text
+```
 GET /api/v1/users
 GET /api/v1/users/{user}
 POST /api/v1/users
@@ -389,7 +388,7 @@ DELETE /api/v1/users/{user}
 
 ## Products
 
-```text
+```
 GET /api/v1/products
 GET /api/v1/products/{product}
 POST /api/v1/products
@@ -400,14 +399,14 @@ DELETE /api/v1/products/{product}
 
 ## Clients
 
-```text
+```
 GET /api/v1/clients
 GET /api/v1/clients/{client}
 ```
 
 ## Gateways
 
-```text
+```
 GET /api/v1/gateways
 GET /api/v1/gateways/{gateway}
 PATCH /api/v1/gateways/{gateway}/priority
@@ -416,7 +415,7 @@ PATCH /api/v1/gateways/{gateway}/active
 
 ## Transactions
 
-```text
+```
 POST /api/v1/transactions
 GET /api/v1/transactions
 GET /api/v1/transactions/{transaction}
@@ -424,23 +423,40 @@ GET /api/v1/transactions/{transaction}
 
 ## Refund
 
-```text
+```
 POST /api/v1/transactions/{transaction}/refund
 ```
 
 ---
 
-# Testes Automatizados
+# Exemplos de Requisição
 
-Cobertura de testes:
+## Criar Transação
 
-```text
-Auth
-AuthorizationRoles
-Transactions
-PaymentService
-Refund
+```json
+{
+  "customer": {
+    "name": "João Silva",
+    "email": "joao@email.com"
+  },
+  "items": [
+    {
+      "product_id": 1,
+      "quantity": 2
+    }
+  ],
+  "card": {
+    "number": "4111111111111111",
+    "holder_name": "João Silva",
+    "expiration": "12/30",
+    "cvv": "123"
+  }
+}
 ```
+
+---
+
+# Testes Automatizados
 
 Executar testes:
 
@@ -448,57 +464,43 @@ Executar testes:
 docker exec -it bemobile_app php artisan test
 ```
 
-Exemplo:
+Resultado atual:
 
-```text
+```
 Tests: 68 passed
 Assertions: 283
 ```
+
+Cobertura inclui:
+
+- autenticação
+- autorização
+- criação de transação
+- fallback de gateway
+- validação de payload
+- listagem e detalhe de transações
+- reembolso total e parcial
 
 ---
 
 # Setup do Projeto
 
-## Clonar repositório
-
 ```bash
 git clone https://github.com/Henri-Di/bemobile-backend-challenge.git
 cd bemobile-backend-challenge
-```
 
-## Subir containers
-
-```bash
 docker compose up -d --build
-```
 
-## Configurar ambiente
-
-```bash
 cp .env.example .env
-```
 
-## Instalar dependências
-
-```bash
 docker exec -it bemobile_app composer install
-```
-
-## Gerar chave
-
-```bash
 docker exec -it bemobile_app php artisan key:generate
-```
-
-## Rodar migrations
-
-```bash
 docker exec -it bemobile_app php artisan migrate --seed
 ```
 
 Aplicação disponível em:
 
-```text
+```
 http://localhost:9000
 ```
 
@@ -508,17 +510,11 @@ http://localhost:9000
 
 Containers utilizados:
 
-```text
+```
 bemobile_app
 bemobile_mysql
 bemobile_nginx
-```
-
-Comandos:
-
-```bash
-docker compose up -d
-docker compose down
+bemobile_gateway_mock
 ```
 
 ---
@@ -527,11 +523,11 @@ docker compose down
 
 Boas práticas aplicadas:
 
-- validação de payload
+- validação de payload via Form Requests
 - mascaramento de dados sensíveis
-- autenticação via token
-- controle de permissões
-- tratamento de exceções
+- autenticação baseada em token
+- controle de permissões por role
+- tratamento centralizado de exceções
 - separação de responsabilidades
 
 ---
@@ -540,11 +536,12 @@ Boas práticas aplicadas:
 
 A arquitetura permite evoluir para:
 
-```text
+```
 filas assíncronas
 circuit breaker para gateways
 novos provedores de pagamento
-observabilidade e métricas
+observabilidade
+métricas
 idempotência de pagamentos
 ```
 
@@ -560,10 +557,6 @@ Permite adicionar novos gateways sem alterar o `PaymentService`.
 
 Centraliza regras de negócio.
 
-### Repository Pattern
-
-Isola acesso ao banco.
-
 ### DTO
 
 Evita acoplamento entre camadas.
@@ -571,6 +564,10 @@ Evita acoplamento entre camadas.
 ### Registro de Tentativas
 
 Permite auditoria completa das transações.
+
+### Fallback de Gateways
+
+Sistema tenta automaticamente o próximo gateway disponível baseado na prioridade.
 
 ---
 
@@ -592,7 +589,7 @@ Permite auditoria completa das transações.
 
 # Melhorias Futuras
 
-```text
+```
 OpenAPI / Swagger
 Circuit breaker
 Filas assíncronas
