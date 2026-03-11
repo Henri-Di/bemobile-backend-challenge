@@ -1,0 +1,89 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bemobile_app
+    working_dir: /var/www
+    restart: unless-stopped
+    volumes:
+      - ./:/var/www
+    env_file:
+      - .env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      gateway_mock:
+        condition: service_started
+    networks:
+      - bemobile_net
+
+  nginx:
+    image: nginx:alpine
+    container_name: bemobile_nginx
+    restart: unless-stopped
+    ports:
+      - "9000:80"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+    networks:
+      - bemobile_net
+
+  mysql:
+    image: mysql:8.0
+    container_name: bemobile_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: bemobile
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: root
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - bemobile_net
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: bemobile_phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: root
+    ports:
+      - "8081:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - bemobile_net
+
+  gateway_mock:
+    image: matheusprotzen/gateways-mock
+    container_name: bemobile_gateway_mock
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+      - "3002:3002"
+    networks:
+      - bemobile_net
+
+volumes:
+  mysql_data:
+
+networks:
+  bemobile_net:
+    driver: bridge
