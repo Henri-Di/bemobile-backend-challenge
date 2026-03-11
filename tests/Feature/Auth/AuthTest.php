@@ -15,13 +15,6 @@ final class AuthTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->seed();
-    }
-
     public function test_user_can_login_with_valid_credentials(): void
     {
         $password = 'Password@123';

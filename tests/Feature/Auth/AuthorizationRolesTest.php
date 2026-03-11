@@ -9,6 +9,7 @@ use App\Enums\UserRoleEnum;
 use App\Models\Gateway;
 use App\Models\Transaction;
 use App\Models\User;
+use Database\Seeders\GatewaySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
@@ -22,7 +23,7 @@ final class AuthorizationRolesTest extends TestCase
     {
         parent::setUp();
 
-        $this->seed();
+        $this->seed(GatewaySeeder::class);
     }
 
     public function test_admin_can_access_gateways_index(): void
@@ -71,8 +72,6 @@ final class AuthorizationRolesTest extends TestCase
 
     public function test_manager_can_access_users_index(): void
     {
-        $this->withoutExceptionHandling();
-
         $manager = $this->createUser(UserRoleEnum::MANAGER);
 
         Sanctum::actingAs($manager);
@@ -84,8 +83,6 @@ final class AuthorizationRolesTest extends TestCase
 
     public function test_admin_can_access_users_index(): void
     {
-        $this->withoutExceptionHandling();
-
         $admin = $this->createUser(UserRoleEnum::ADMIN);
 
         Sanctum::actingAs($admin);
@@ -201,7 +198,7 @@ final class AuthorizationRolesTest extends TestCase
             'reason' => 'Customer request',
         ]);
 
-        $this->assertRouteWasAuthorized($response);
+        $this->assertNotForbidden($response);
     }
 
     public function test_admin_can_access_refund_route(): void
@@ -216,7 +213,7 @@ final class AuthorizationRolesTest extends TestCase
             'reason' => 'Manual review approved',
         ]);
 
-        $this->assertRouteWasAuthorized($response);
+        $this->assertNotForbidden($response);
     }
 
     public function test_manager_cannot_refund_transaction(): void
@@ -275,20 +272,32 @@ final class AuthorizationRolesTest extends TestCase
     {
         $status = $response->getStatusCode();
 
-        $this->assertContains($status, [401, 403], $response->getContent());
+        $this->assertContains(
+            $status,
+            [401, 403],
+            "Unexpected status {$status}. Response: {$response->getContent()}"
+        );
     }
 
     private function assertAllowedCreation(TestResponse $response): void
     {
         $status = $response->getStatusCode();
 
-        $this->assertContains($status, [200, 201], $response->getContent());
+        $this->assertContains(
+            $status,
+            [200, 201],
+            "Unexpected status {$status}. Response: {$response->getContent()}"
+        );
     }
 
-    private function assertRouteWasAuthorized(TestResponse $response): void
+    private function assertNotForbidden(TestResponse $response): void
     {
         $status = $response->getStatusCode();
 
-        $this->assertNotContains($status, [401, 403], $response->getContent());
+        $this->assertNotContains(
+            $status,
+            [401, 403],
+            "Unexpected status {$status}. Response: {$response->getContent()}"
+        );
     }
 }

@@ -190,12 +190,10 @@ final class PaymentServiceFallbackTest extends TestCase
 
         $this->assertNull($transaction->gateway_id);
         $this->assertNull($transaction->external_id);
-
         $this->assertSame(
             TransactionStatusEnum::FAILED->value,
             $this->normalizeStatus($transaction->status)
         );
-
         $this->assertSame(
             'All gateways failed to process the transaction.',
             $transaction->gateway_message
@@ -283,7 +281,8 @@ final class PaymentServiceFallbackTest extends TestCase
     {
         [$gatewayOne, $gatewayTwo] = $this->orderedGateways();
 
-        $gatewayOne->update(['priority' => 999]);
+        // Evita colisão temporária na unique key de priority
+        $gatewayOne->update(['priority' => 99]);
         $gatewayTwo->update(['priority' => 1]);
         $gatewayOne->update(['priority' => 2]);
 

@@ -343,8 +343,15 @@ final class PaymentServiceValidationTest extends TestCase
 
     private function makeValidationService(): ExposedPaymentValidationService
     {
-        $gatewayOne = new FakeValidationGatewayService(GatewayCodeEnum::GATEWAY_ONE, 'Fake Gateway One');
-        $gatewayTwo = new FakeValidationGatewayService(GatewayCodeEnum::GATEWAY_TWO, 'Fake Gateway Two');
+        $gatewayOne = new FakeValidationGatewayService(
+            GatewayCodeEnum::GATEWAY_ONE,
+            'Fake Gateway One'
+        );
+
+        $gatewayTwo = new FakeValidationGatewayService(
+            GatewayCodeEnum::GATEWAY_TWO,
+            'Fake Gateway Two'
+        );
 
         return new ExposedPaymentValidationService(
             db: $this->app->make('db'),

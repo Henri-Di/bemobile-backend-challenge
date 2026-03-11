@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Transactions;
 
+use App\Enums\TransactionStatusEnum;
 use App\Models\Client;
 use App\Models\Gateway;
 use App\Models\Product;
@@ -47,6 +48,7 @@ final class StoreTransactionTest extends TestCase
         ]);
 
         $transaction = $this->createPersistedTransaction([
+            'status' => TransactionStatusEnum::PAID,
             'amount' => (2 * $productA->amount) + $productB->amount,
             'external_id' => 'txn_test_success_001',
             'card_last_numbers' => '4242',
@@ -97,6 +99,7 @@ final class StoreTransactionTest extends TestCase
         ]);
 
         $transaction = $this->createPersistedTransaction([
+            'status' => TransactionStatusEnum::PAID,
             'amount' => 3 * $product->amount,
             'external_id' => 'txn_test_backend_calc',
             'card_last_numbers' => '4242',
@@ -108,14 +111,15 @@ final class StoreTransactionTest extends TestCase
             ->once()
             ->withArgs(function (array $payload, $user) use ($product): bool {
                 return $user === null
-                    && ($payload['customer']['name'] ?? null) === 'Cliente Teste'
-                    && ($payload['customer']['email'] ?? null) === 'cliente@example.com'
+                    && ($payload['client']['name'] ?? null) === 'Cliente Teste'
+                    && ($payload['client']['email'] ?? null) === 'cliente@example.com'
+                    && ($payload['client']['document'] ?? null) === '12345678909'
                     && ($payload['card']['number'] ?? null) === '5555555555554242'
                     && ($payload['card']['cvv'] ?? null) === '321'
-                    && ($payload['items'][0]['product_id'] ?? null) === $product->id
-                    && ($payload['items'][0]['quantity'] ?? null) === 3;
+                    && ($payload['products'][0]['product_id'] ?? null) === $product->id
+                    && ($payload['products'][0]['quantity'] ?? null) === 3;
             })
-            ->andReturn($transaction);
+            ->andReturn($transaction->fresh());
 
         $this->app->instance(PaymentService::class, $mock);
 
@@ -278,6 +282,7 @@ final class StoreTransactionTest extends TestCase
         return Transaction::factory()->create(array_merge([
             'client_id' => $client->id,
             'gateway_id' => $gatewayId,
+            'status' => TransactionStatusEnum::PENDING,
             'card_last_numbers' => '4242',
         ], $attributes));
     }

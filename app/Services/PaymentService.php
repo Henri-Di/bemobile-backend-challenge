@@ -16,8 +16,6 @@ use App\Models\Transaction;
 use App\Models\TransactionAttempt;
 use App\Models\TransactionProduct;
 use App\Models\User;
-use App\Services\Gateways\GatewayOneService;
-use App\Services\Gateways\GatewayTwoService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Collection;
@@ -28,8 +26,8 @@ class PaymentService
 {
     public function __construct(
         protected readonly DatabaseManager $db,
-        protected readonly GatewayOneService $gatewayOneService,
-        protected readonly GatewayTwoService $gatewayTwoService,
+        protected readonly GatewayPaymentInterface $gatewayOneService,
+        protected readonly GatewayPaymentInterface $gatewayTwoService,
     ) {
     }
 
@@ -572,3 +570,4 @@ class PaymentService
         return method_exists($gatewayService, 'isAvailable') && ! $gatewayService->isAvailable();
     }
 }
+

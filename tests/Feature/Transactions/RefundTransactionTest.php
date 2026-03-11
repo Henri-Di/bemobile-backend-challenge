@@ -9,6 +9,8 @@ use App\DataTransferObjects\GatewayChargeResult;
 use App\DataTransferObjects\GatewayRefundResult;
 use App\DataTransferObjects\PaymentChargeData;
 use App\Enums\GatewayCodeEnum;
+use App\Enums\TransactionStatusEnum;
+use App\Enums\UserRoleEnum;
 use App\Models\Gateway;
 use App\Models\Transaction;
 use App\Models\User;
@@ -38,7 +40,7 @@ final class RefundTransactionTest extends TestCase
         $transaction = Transaction::factory()->create([
             'gateway_id' => $gateway->id,
             'external_id' => 'txn_paid_001',
-            'status' => 'paid',
+            'status' => TransactionStatusEnum::PAID,
             'amount' => 1990,
             'refunded_at' => null,
         ]);
@@ -106,7 +108,7 @@ final class RefundTransactionTest extends TestCase
         $transaction = Transaction::factory()->create([
             'gateway_id' => $gateway->id,
             'external_id' => 'txn_paid_partial_001',
-            'status' => 'paid',
+            'status' => TransactionStatusEnum::PAID,
             'amount' => 1990,
             'refunded_at' => null,
         ]);
@@ -175,7 +177,7 @@ final class RefundTransactionTest extends TestCase
         $transaction = Transaction::factory()->create([
             'gateway_id' => $gateway->id,
             'external_id' => 'txn_pending_001',
-            'status' => 'pending',
+            'status' => TransactionStatusEnum::PENDING,
             'amount' => 1990,
         ]);
 
@@ -196,7 +198,7 @@ final class RefundTransactionTest extends TestCase
         $transaction = Transaction::factory()->create([
             'gateway_id' => $gateway->id,
             'external_id' => 'txn_refunded_001',
-            'status' => 'refunded',
+            'status' => TransactionStatusEnum::REFUNDED,
             'amount' => 1990,
         ]);
 
@@ -216,7 +218,7 @@ final class RefundTransactionTest extends TestCase
         $transaction = Transaction::factory()->create([
             'gateway_id' => null,
             'external_id' => null,
-            'status' => 'paid',
+            'status' => TransactionStatusEnum::PAID,
             'amount' => 1990,
         ]);
 
@@ -240,7 +242,7 @@ final class RefundTransactionTest extends TestCase
         $transaction = Transaction::factory()->create([
             'gateway_id' => $gateway->id,
             'external_id' => 'txn_paid_002',
-            'status' => 'paid',
+            'status' => TransactionStatusEnum::PAID,
             'amount' => 1990,
         ]);
 
@@ -266,7 +268,7 @@ final class RefundTransactionTest extends TestCase
         $transaction = Transaction::factory()->create([
             'gateway_id' => $gateway->id,
             'external_id' => 'txn_paid_003',
-            'status' => 'paid',
+            'status' => TransactionStatusEnum::PAID,
             'amount' => 1990,
         ]);
 
@@ -323,7 +325,7 @@ final class RefundTransactionTest extends TestCase
         $transaction = Transaction::factory()->create([
             'gateway_id' => $gateway->id,
             'external_id' => 'txn_paid_004',
-            'status' => 'paid',
+            'status' => TransactionStatusEnum::PAID,
             'amount' => 1990,
         ]);
 
@@ -367,7 +369,9 @@ final class RefundTransactionTest extends TestCase
     private function gatewayByCode(string $code): Gateway
     {
         /** @var Gateway $gateway */
-        $gateway = Gateway::query()->where('code', $code)->firstOrFail();
+        $gateway = Gateway::query()
+            ->where('code', $code)
+            ->firstOrFail();
 
         return $gateway;
     }
@@ -396,7 +400,7 @@ final class RefundTransactionTest extends TestCase
     private function authorizedRefundUser(): User
     {
         return User::factory()->create([
-            'role' => 'ADMIN',
+            'role' => UserRoleEnum::ADMIN,
             'is_active' => true,
         ]);
     }
@@ -465,5 +469,3 @@ final class FakeGatewayRefundService implements GatewayPaymentInterface
         return in_array($feature, ['refund', 'refund_partial'], true);
     }
 }
-
-

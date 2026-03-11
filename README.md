@@ -6,33 +6,24 @@
 ![MySQL](https://img.shields.io/badge/MySQL-8-orange)
 ![Tests](https://img.shields.io/badge/tests-passing-brightgreen)
 
-API RESTful desenvolvida como solução para o **Teste Prático Backend da BeMobile (Nível 3)**.
+API RESTful desenvolvida como solução para o **Teste Prático Backend da BeMobile — Nível 3**.
 
-Este projeto implementa um sistema completo de **processamento de pagamentos com múltiplos gateways**, incluindo fallback automático, registro de tentativas de pagamento, processamento de reembolsos e controle de permissões.
+Sistema de **processamento de pagamentos com múltiplos gateways**, incluindo:
 
-A aplicação foi construída utilizando:
-
-- PHP 8.2
-- Laravel 10
-- MySQL
-- Docker
-- Laravel Sanctum
-- PHPUnit
-
-O projeto segue princípios de:
-
-- arquitetura limpa
-- separação de responsabilidades
-- extensibilidade
-- testabilidade
-- boas práticas de engenharia
+- fallback automático entre gateways
+- controle de prioridade de gateways
+- registro de tentativas de pagamento
+- reembolsos totais e parciais
+- autenticação e controle de permissões
+- arquitetura extensível para novos gateways
+- testes automatizados
 
 ---
 
 # 📚 Sumário
 
 - Visão Geral
-- Arquitetura
+- Arquitetura (C4 Simplificado)
 - Estrutura do Projeto
 - Modelagem do Banco
 - Fluxo de Pagamento
@@ -42,16 +33,19 @@ O projeto segue princípios de:
 - Testes Automatizados
 - Setup do Projeto
 - Docker
+- Segurança
+- Escalabilidade
 - Decisões Técnicas
+- Aderência ao Desafio
 - Melhorias Futuras
 
 ---
 
 # Visão Geral
 
-A API fornece um backend completo para gerenciamento de pagamentos.
+A API fornece um backend completo para **gerenciamento de pagamentos com múltiplos gateways**.
 
-Funcionalidades implementadas:
+Funcionalidades principais:
 
 - autenticação de usuários
 - gerenciamento de usuários
@@ -63,14 +57,36 @@ Funcionalidades implementadas:
 - registro de tentativas de pagamento
 - processamento de reembolsos
 - controle de permissões baseado em roles
+- auditoria completa das operações
 
 ---
 
-# Arquitetura
+# Arquitetura (C4 Simplificado)
 
-A aplicação segue uma arquitetura em camadas para manter o código desacoplado e testável.
+```mermaid
+flowchart LR
 
+User[Client Application]
+
+subgraph Backend
+API[Laravel API]
+Service[Payment Service]
+Gateway1[Gateway One]
+Gateway2[Gateway Two]
+DB[(MySQL)]
+end
+
+User --> API
+API --> Service
+Service --> Gateway1
+Service --> Gateway2
+Service --> DB
+API --> DB
 ```
+
+## Arquitetura em Camadas
+
+```text
 Client Request
       │
       ▼
@@ -92,8 +108,6 @@ Repository Layer
 Database
 ```
 
-### Camadas
-
 | Camada | Responsabilidade |
 |------|------|
 Controllers | Entrada HTTP |
@@ -101,18 +115,15 @@ Requests | Validação |
 Services | Regras de negócio |
 Repositories | Persistência |
 DTOs | Transporte de dados |
-Enums | Tipagem de estados |
+Enums | Estados do domínio |
 Gateways | Integração externa |
 
 ---
 
 # Estrutura do Projeto
 
-Estrutura real baseada no projeto:
-
-```
+```text
 app
-├── Console
 ├── Contracts
 │   ├── GatewayPaymentInterface.php
 │   ├── GatewayRepositoryInterface.php
@@ -131,8 +142,7 @@ app
 │   └── UserRoleEnum.php
 │
 ├── Exceptions
-│   ├── GatewayIntegrationException.php
-│   └── Handler.php
+│   └── GatewayIntegrationException.php
 │
 ├── Http
 │   ├── Controllers
@@ -150,33 +160,16 @@ app
 │   │   └── Authenticate.php
 │   │
 │   ├── Requests
-│   │   ├── ClientIndexRequest.php
-│   │   ├── GatewayIndexRequest.php
-│   │   ├── ProductIndexRequest.php
-│   │   ├── SetGatewayActiveRequest.php
-│   │   ├── StoreProductRequest.php
-│   │   ├── StoreRefundRequest.php
 │   │   ├── StoreTransactionRequest.php
-│   │   ├── StoreUserRequest.php
-│   │   ├── TransactionIndexRequest.php
-│   │   ├── UpdateGatewayPriorityRequest.php
-│   │   ├── UpdateProductRequest.php
-│   │   ├── UpdateUserRequest.php
-│   │   └── UserIndexRequest.php
+│   │   ├── StoreRefundRequest.php
+│   │   └── StoreUserRequest.php
 │   │
 │   └── Resources
-│       ├── ClientDetailResource.php
-│       ├── ClientResource.php
-│       ├── GatewayResource.php
-│       ├── ProductResource.php
-│       ├── RefundResource.php
 │       ├── TransactionResource.php
+│       ├── RefundResource.php
 │       └── UserResource.php
 │
 ├── Models
-│   ├── Concerns
-│   │   └── HandlesBrazilianDateTimes.php
-│   │
 │   ├── Client.php
 │   ├── Gateway.php
 │   ├── Product.php
@@ -185,13 +178,6 @@ app
 │   ├── TransactionAttempt.php
 │   ├── TransactionProduct.php
 │   └── User.php
-│
-├── Providers
-│   ├── AppServiceProvider.php
-│   ├── AuthServiceProvider.php
-│   ├── BroadcastServiceProvider.php
-│   ├── EventServiceProvider.php
-│   └── RouteServiceProvider.php
 │
 ├── Repositories
 │   └── Eloquent
@@ -211,9 +197,9 @@ app
 
 # Modelagem do Banco
 
-Tabelas principais:
+## Entidades
 
-```
+```text
 users
 clients
 products
@@ -224,50 +210,87 @@ transaction_attempts
 refunds
 ```
 
-Relacionamentos:
+## Diagrama ER
 
-```
-Client
- └── Transactions
+```mermaid
+erDiagram
 
-Transaction
- ├── TransactionProducts
- ├── TransactionAttempts
- └── Refunds
+CLIENT ||--o{ TRANSACTION : has
+TRANSACTION ||--o{ TRANSACTION_PRODUCT : contains
+TRANSACTION ||--o{ TRANSACTION_ATTEMPT : attempts
+TRANSACTION ||--o{ REFUND : refunds
+GATEWAY ||--o{ TRANSACTION_ATTEMPT : processes
+GATEWAY ||--o{ REFUND : refunds
 
-Gateway
- ├── TransactionAttempts
- └── Refunds
+CLIENT {
+int id
+string name
+string email
+}
+
+TRANSACTION {
+int id
+int client_id
+decimal amount
+string status
+}
+
+TRANSACTION_PRODUCT {
+int id
+int transaction_id
+int product_id
+int quantity
+}
+
+TRANSACTION_ATTEMPT {
+int id
+int transaction_id
+int gateway_id
+string status
+}
+
+REFUND {
+int id
+int transaction_id
+decimal amount
+}
 ```
 
 ---
 
 # Fluxo de Pagamento
 
-Fluxo simplificado:
+```mermaid
+sequenceDiagram
 
-```
-Cliente cria transação
-        │
-        ▼
-Validação de produtos
-        │
-        ▼
-Criação da transação (PROCESSING)
-        │
-        ▼
-Gateway 1 tenta pagamento
-        │
-        ├─ sucesso → status = PAID
-        │
-        └─ falha
-             │
-             ▼
-        Gateway 2 tenta pagamento
-             │
-             ├─ sucesso → status = PAID
-             │
-             └─ falha → status = FAILED
+participant Client
+participant API
+participant Service
+participant Gateway1
+participant Gateway2
+participant DB
+
+Client->>API: POST /transactions
+API->>Service: createTransaction()
+Service->>DB: create transaction (PROCESSING)
+
+Service->>Gateway1: charge()
+
+alt Success
+Gateway1-->>Service: success
+Service->>DB: update status PAID
+else Failure
+Gateway1-->>Service: failure
+Service->>Gateway2: charge()
+
+alt Success
+Gateway2-->>Service: success
+Service->>DB: update status PAID
+else Failure
+Gateway2-->>Service: failure
+Service->>DB: update status FAILED
+end
+end
 ```
 
 Todas as tentativas são registradas em:
@@ -280,16 +303,23 @@ transaction_attempts
 
 # Fluxo de Reembolso
 
-Regras aplicadas:
+```mermaid
+sequenceDiagram
 
-- apenas transações `PAID` podem ser reembolsadas
-- reembolso pode ser parcial ou total
-- valor não pode exceder valor da transação
+participant Client
+participant API
+participant Service
+participant Gateway
+participant DB
 
-Após reembolso:
+Client->>API: POST /refund
+API->>Service: refund()
 
-```
-transaction.status = REFUNDED
+Service->>Gateway: refund request
+Gateway-->>Service: response
+
+Service->>DB: save refund
+Service->>DB: update transaction
 ```
 
 ---
@@ -303,24 +333,25 @@ Roles disponíveis:
 ```
 ADMIN
 MANAGER
+FINANCE
 USER
 ```
 
-Permissões principais:
+## Permissões
 
-| Ação | ADMIN | MANAGER | USER |
-|----|----|----|----|
-Criar usuário | ✔ | ✔ | ✖ |
-Criar produto | ✔ | ✔ | ✖ |
-Criar cliente | ✔ | ✔ | ✔ |
-Criar transação | ✔ | ✔ | ✔ |
-Processar refund | ✔ | ✔ | ✖ |
+| Ação | ADMIN | MANAGER | FINANCE | USER |
+|----|----|----|----|----|
+Criar usuário | ✔ | ✔ | ✖ | ✖ |
+Criar produto | ✔ | ✔ | ✔ | ✖ |
+Criar cliente | ✔ | ✔ | ✔ | ✔ |
+Criar transação | ✔ | ✔ | ✔ | ✔ |
+Processar refund | ✔ | ✖ | ✔ | ✖ |
 
 ---
 
 # Endpoints
 
-### Auth
+## Auth
 
 ```
 POST /api/v1/login
@@ -328,7 +359,7 @@ POST /api/v1/logout
 GET /api/v1/user
 ```
 
-### Users
+## Users
 
 ```
 GET /api/v1/users
@@ -337,7 +368,7 @@ PUT /api/v1/users/{id}
 DELETE /api/v1/users/{id}
 ```
 
-### Products
+## Products
 
 ```
 GET /api/v1/products
@@ -346,14 +377,14 @@ PUT /api/v1/products/{id}
 DELETE /api/v1/products/{id}
 ```
 
-### Clients
+## Clients
 
 ```
 GET /api/v1/clients
 POST /api/v1/clients
 ```
 
-### Gateways
+## Gateways
 
 ```
 GET /api/v1/gateways
@@ -361,7 +392,7 @@ PATCH /api/v1/gateways/{id}/priority
 PATCH /api/v1/gateways/{id}/active
 ```
 
-### Transactions
+## Transactions
 
 ```
 POST /api/v1/transactions
@@ -369,7 +400,7 @@ GET /api/v1/transactions
 GET /api/v1/transactions/{id}
 ```
 
-### Refund
+## Refund
 
 ```
 POST /api/v1/transactions/{transaction}/refund
@@ -379,13 +410,14 @@ POST /api/v1/transactions/{transaction}/refund
 
 # Testes Automatizados
 
-Testes cobrem:
+Cobertura de testes:
 
 ```
 Auth
 AuthorizationRoles
 Transactions
 PaymentService
+Refund
 ```
 
 Executar testes:
@@ -394,42 +426,49 @@ Executar testes:
 docker exec -it bemobile_app php artisan test
 ```
 
+Exemplo:
+
+```
+Tests: 68 passed
+Assertions: 283
+```
+
 ---
 
 # Setup do Projeto
 
-### Clonar repositório
+## Clonar repositório
 
 ```bash
 git clone https://github.com/Henri-Di/bemobile-backend-challenge.git
 cd bemobile-backend-challenge
 ```
 
-### Subir containers
+## Subir containers
 
 ```bash
 docker compose up -d --build
 ```
 
-### Configurar ambiente
+## Configurar ambiente
 
 ```bash
 cp .env.example .env
 ```
 
-### Instalar dependências
+## Instalar dependências
 
 ```bash
 docker exec -it bemobile_app composer install
 ```
 
-### Gerar chave
+## Gerar chave
 
 ```bash
 docker exec -it bemobile_app php artisan key:generate
 ```
 
-### Rodar migrations
+## Rodar migrations
 
 ```bash
 docker exec -it bemobile_app php artisan migrate --seed
@@ -453,17 +492,37 @@ bemobile_mysql
 bemobile_nginx
 ```
 
-Subir:
+Comandos:
 
 ```bash
 docker compose up -d
-```
-
-Parar:
-
-```bash
 docker compose down
 ```
+
+---
+
+# Segurança
+
+Boas práticas aplicadas:
+
+- validação de payload
+- mascaramento de dados sensíveis
+- autenticação via token
+- controle de permissões
+- tratamento de exceções
+- separação de responsabilidades
+
+---
+
+# Escalabilidade
+
+A arquitetura permite evoluir para:
+
+- filas assíncronas
+- circuit breaker para gateways
+- novos provedores de pagamento
+- observabilidade e métricas
+- idempotência de pagamentos
 
 ---
 
@@ -471,35 +530,57 @@ docker compose down
 
 ### Interface de Gateway
 
-Permite adicionar novos gateways sem alterar a lógica principal.
+Permite adicionar novos gateways sem alterar o `PaymentService`.
 
-### DTO Layer
+### Service Layer
 
-Isola dados da camada de negócio.
+Centraliza regras de negócio.
 
 ### Repository Pattern
 
-Abstrai acesso ao banco.
+Isola acesso ao banco.
+
+### DTO
+
+Evita acoplamento entre camadas.
 
 ### Registro de Tentativas
 
-Permite auditoria completa de pagamentos.
+Permite auditoria completa das transações.
+
+---
+
+# Aderência ao Desafio
+
+| Requisito | Status |
+|------|------|
+API REST | ✔ |
+MySQL | ✔ |
+Docker | ✔ |
+Múltiplos gateways | ✔ |
+Fallback automático | ✔ |
+Reembolso | ✔ |
+Controle de roles | ✔ |
+Testes automatizados | ✔ |
+Arquitetura extensível | ✔ |
 
 ---
 
 # Melhorias Futuras
 
-- documentação OpenAPI / Swagger
-- circuit breaker para gateways
-- filas para pagamentos assíncronos
-- observabilidade
-- métricas e monitoramento
-- idempotência de pagamentos
+```
+OpenAPI / Swagger
+Circuit breaker
+Filas assíncronas
+Observabilidade
+Métricas
+Idempotência de pagamentos
+```
 
 ---
 
 # Autor
 
-Henrique Dias
+Matheus Diamantino
 
 Teste Técnico Backend — BeMobile

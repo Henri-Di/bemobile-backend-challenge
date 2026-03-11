@@ -7,6 +7,7 @@ namespace Tests\Feature\Transactions;
 use App\Enums\RefundStatusEnum;
 use App\Enums\TransactionAttemptStatusEnum;
 use App\Enums\TransactionStatusEnum;
+use App\Enums\UserRoleEnum;
 use App\Models\Client;
 use App\Models\Gateway;
 use App\Models\Product;
@@ -335,7 +336,10 @@ final class ShowTransactionTest extends TestCase
 
     private function authorizedUser(): User
     {
-        return User::factory()->create();
+        return User::factory()->create([
+            'role' => UserRoleEnum::ADMIN,
+            'is_active' => true,
+        ]);
     }
 
     private function gatewayByCode(string $code): Gateway

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Transactions;
 
+use App\Enums\TransactionStatusEnum;
+use App\Enums\UserRoleEnum;
 use App\Models\Client;
 use App\Models\Gateway;
 use App\Models\Transaction;
@@ -43,7 +45,7 @@ final class ListTransactionsTest extends TestCase
         $transactionOne = Transaction::factory()->create([
             'client_id' => $clientOne->id,
             'gateway_id' => $gateway->id,
-            'status' => 'paid',
+            'status' => TransactionStatusEnum::PAID,
             'amount' => 1990,
             'external_id' => 'txn_list_001',
         ]);
@@ -51,7 +53,7 @@ final class ListTransactionsTest extends TestCase
         $transactionTwo = Transaction::factory()->create([
             'client_id' => $clientTwo->id,
             'gateway_id' => $gateway->id,
-            'status' => 'failed',
+            'status' => TransactionStatusEnum::FAILED,
             'amount' => 2990,
             'external_id' => 'txn_list_002',
         ]);
@@ -94,7 +96,7 @@ final class ListTransactionsTest extends TestCase
         $paidTransaction = Transaction::factory()->create([
             'client_id' => $client->id,
             'gateway_id' => $gateway->id,
-            'status' => 'paid',
+            'status' => TransactionStatusEnum::PAID,
             'amount' => 1990,
             'external_id' => 'txn_status_paid',
         ]);
@@ -102,7 +104,7 @@ final class ListTransactionsTest extends TestCase
         Transaction::factory()->create([
             'client_id' => $client->id,
             'gateway_id' => $gateway->id,
-            'status' => 'failed',
+            'status' => TransactionStatusEnum::FAILED,
             'amount' => 2990,
             'external_id' => 'txn_status_failed',
         ]);
@@ -140,7 +142,7 @@ final class ListTransactionsTest extends TestCase
         $targetTransaction = Transaction::factory()->create([
             'client_id' => $targetClient->id,
             'gateway_id' => $gateway->id,
-            'status' => 'paid',
+            'status' => TransactionStatusEnum::PAID,
             'amount' => 1990,
             'external_id' => 'txn_client_target',
         ]);
@@ -148,7 +150,7 @@ final class ListTransactionsTest extends TestCase
         Transaction::factory()->create([
             'client_id' => $otherClient->id,
             'gateway_id' => $gateway->id,
-            'status' => 'paid',
+            'status' => TransactionStatusEnum::PAID,
             'amount' => 2990,
             'external_id' => 'txn_client_other',
         ]);
@@ -177,7 +179,7 @@ final class ListTransactionsTest extends TestCase
         Transaction::factory()->count(3)->create([
             'client_id' => $client->id,
             'gateway_id' => $gateway->id,
-            'status' => 'paid',
+            'status' => TransactionStatusEnum::PAID,
             'amount' => 1990,
         ]);
 
@@ -212,7 +214,7 @@ final class ListTransactionsTest extends TestCase
         $transaction = Transaction::factory()->create([
             'client_id' => $client->id,
             'gateway_id' => $gateway->id,
-            'status' => 'paid',
+            'status' => TransactionStatusEnum::PAID,
             'amount' => 4590,
             'external_id' => 'txn_structured_001',
         ]);
@@ -258,7 +260,7 @@ final class ListTransactionsTest extends TestCase
     private function authorizedUser(): User
     {
         return User::factory()->create([
-            'role' => 'ADMIN',
+            'role' => UserRoleEnum::ADMIN,
             'is_active' => true,
         ]);
     }
